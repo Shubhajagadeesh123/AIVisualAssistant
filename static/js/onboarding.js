@@ -1,474 +1,521 @@
-/**
- * BlindMate Onboarding Tutorial JavaScript
- * Comprehensive tutorial system for first-time users
- */
+// =========================================
+// AIVisualAssistant Onboarding
+// =========================================
 
-class OnboardingTutorial {
-    constructor() {
-        this.currentStep = 1;
-        this.totalSteps = 8;
-        this.audioEnabled = true;
-        this.synthesis = window.speechSynthesis;
-        this.practiceExercises = [
-            {
-                title: "Exercise 1: Wake Word Practice",
-                instruction: "Say 'Hey BlindMate, start detection' and wait for a response.",
-                expectedResponse: "detection",
-                successMessage: "Perfect! You've mastered the wake word feature."
-            },
-            {
-                title: "Exercise 2: Universal Navigation",
-                instruction: "Say 'Hey BlindMate, take me to Times Square' to practice global navigation.",
-                expectedResponse: "times square",
-                successMessage: "Excellent! You can now navigate anywhere worldwide."
-            },
-            {
-                title: "Exercise 3: Voice Customization",
-                instruction: "Say 'Change tone to energetic' to practice voice customization.",
-                expectedResponse: "energetic",
-                successMessage: "Great! You've learned how to customize BlindMate's voice."
-            },
-            {
-                title: "Exercise 4: Language Switching",
-                instruction: "Say 'Change language to Hindi' to practice multilingual features.",
-                expectedResponse: "hindi",
-                successMessage: "Wonderful! You can now use BlindMate in 15 different languages."
-            }
-        ];
-        this.currentExercise = 0;
-        this.practiceProgress = 0;
-        
-        this.init();
-    }
-    
-    init() {
-        this.updateProgressIndicator();
-        this.initializeSpeechRecognition();
-        this.speakCurrentStep();
-        
-        // Announce tutorial start
-        setTimeout(() => {
-            this.speak("Welcome to the BlindMate tutorial. This interactive guide will teach you how to use all features safely. You can navigate using the next and previous buttons, or use keyboard shortcuts. Press space for next, or escape to exit the tutorial.");
-        }, 1000);
-        
-        // Keyboard shortcuts
-        document.addEventListener('keydown', (e) => {
-            switch(e.key) {
-                case ' ':
-                case 'ArrowRight':
-                    e.preventDefault();
-                    this.nextStep();
-                    break;
-                case 'ArrowLeft':
-                    e.preventDefault();
-                    this.previousStep();
-                    break;
-                case 'Escape':
-                    this.exitTutorial();
-                    break;
-                case 'r':
-                case 'R':
-                    if (e.ctrlKey) {
-                        e.preventDefault();
-                        this.repeatCurrentStep();
-                    }
-                    break;
-            }
-        });
-    }
-    
-    initializeSpeechRecognition() {
-        if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            console.warn('Speech recognition not available');
-            return;
-        }
-        
-        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-        this.recognition = new SpeechRecognition();
-        
-        this.recognition.continuous = false;
-        this.recognition.interimResults = false;
-        this.recognition.lang = 'en-US';
-        
-        this.recognition.onresult = (event) => {
-            const command = event.results[0][0].transcript.toLowerCase().trim();
-            this.handleVoiceCommand(command);
-        };
-        
-        this.recognition.onerror = (event) => {
-            console.error('Speech recognition error:', event.error);
-        };
-    }
-    
-    handleVoiceCommand(command) {
-        // Tutorial navigation commands
-        if (command.includes('next') || command.includes('continue')) {
-            this.nextStep();
-        } else if (command.includes('previous') || command.includes('back')) {
-            this.previousStep();
-        } else if (command.includes('repeat')) {
-            this.repeatCurrentStep();
-        } else if (command.includes('exit') || command.includes('quit')) {
-            this.exitTutorial();
-        }
-        
-        // Practice exercise handling
-        if (this.currentStep === 7 && this.isPracticing) {
-            this.handlePracticeCommand(command);
-        }
-    }
-    
-    updateProgressIndicator() {
-        const progressDots = document.getElementById('progressDots');
-        const progressText = document.getElementById('progressText');
-        
-        // Create progress dots
-        progressDots.innerHTML = '';
-        for (let i = 1; i <= this.totalSteps; i++) {
-            const dot = document.createElement('div');
-            dot.className = 'progress-dot';
-            
-            if (i < this.currentStep) {
-                dot.classList.add('completed');
-            } else if (i === this.currentStep) {
-                dot.classList.add('active');
-            }
-            
-            progressDots.appendChild(dot);
-        }
-        
-        progressText.textContent = `Step ${this.currentStep} of ${this.totalSteps}`;
-    }
-    
-    showStep(stepNumber) {
-        // Hide all steps
-        document.querySelectorAll('.step-card').forEach(card => {
-            card.classList.remove('active');
-        });
-        
-        // Show current step
-        const currentStepCard = document.querySelector(`[data-step="${stepNumber}"]`);
-        if (currentStepCard) {
-            currentStepCard.classList.add('active');
-        }
-        
-        this.updateProgressIndicator();
-        this.updateNavigationButtons();
-        
-        // Announce step change
-        setTimeout(() => {
-            this.speakCurrentStep();
-        }, 500);
-    }
-    
-    speakCurrentStep() {
-        if (!this.audioEnabled) return;
-        
-        const currentStepCard = document.querySelector(`[data-step="${this.currentStep}"]`);
-        if (!currentStepCard) return;
-        
-        const title = currentStepCard.querySelector('.step-title').textContent;
-        const content = currentStepCard.querySelector('.step-content p').textContent;
-        
-        const announcement = `Step ${this.currentStep} of ${this.totalSteps}: ${title}. ${content}`;
-        this.speak(announcement);
-    }
-    
-    nextStep() {
-        if (this.currentStep < this.totalSteps) {
-            this.currentStep++;
-            this.showStep(this.currentStep);
-            
-            // Special handling for practice step
-            if (this.currentStep === 7) {
-                this.initializePracticeSession();
-            }
-        }
-    }
-    
-    previousStep() {
-        if (this.currentStep > 1) {
-            this.currentStep--;
-            this.showStep(this.currentStep);
-        }
-    }
-    
-    updateNavigationButtons() {
-        const prevButton = document.getElementById('prevButton');
-        const nextButton = document.getElementById('nextButton');
-        
-        prevButton.disabled = this.currentStep === 1;
-        
-        if (this.currentStep === this.totalSteps) {
-            nextButton.innerHTML = '<i class="fas fa-check"></i> Complete';
-            nextButton.onclick = () => this.completeTutorial();
-        } else {
-            nextButton.innerHTML = 'Next <i class="fas fa-chevron-right"></i>';
-            nextButton.onclick = () => this.nextStep();
-        }
-    }
-    
-    initializePracticeSession() {
-        this.currentExercise = 0;
-        this.practiceProgress = 0;
-        this.updatePracticeExercise();
-        
-        // Show practice progress
-        const practiceProgressDiv = document.getElementById('practiceProgress');
-        practiceProgressDiv.style.display = 'block';
-    }
-    
-    updatePracticeExercise() {
-        if (this.currentExercise >= this.practiceExercises.length) {
-            this.completePracticeSession();
-            return;
-        }
-        
-        const exercise = this.practiceExercises[this.currentExercise];
-        
-        document.getElementById('exerciseTitle').textContent = exercise.title;
-        document.getElementById('exerciseInstruction').textContent = exercise.instruction;
-        
-        const progressBar = document.getElementById('practiceProgressBar');
-        const progressPercent = (this.currentExercise / this.practiceExercises.length) * 100;
-        progressBar.style.width = `${progressPercent}%`;
-        
-        document.getElementById('practiceStatus').textContent = `Exercise ${this.currentExercise + 1} of ${this.practiceExercises.length}`;
-        
-        // Reset practice button
-        const practiceButton = document.getElementById('practiceButton');
-        practiceButton.innerHTML = '<i class="fas fa-microphone"></i> Start Practice';
-        practiceButton.onclick = () => this.startPractice();
-        
-        this.isPracticing = false;
-        
-        this.speak(exercise.instruction);
-    }
-    
-    startPractice() {
-        if (!this.recognition) {
-            this.speak('Speech recognition is not available in your browser.');
-            return;
-        }
-        
-        this.isPracticing = true;
-        const practiceButton = document.getElementById('practiceButton');
-        practiceButton.innerHTML = '<i class="fas fa-stop"></i> Stop Practice';
-        practiceButton.onclick = () => this.stopPractice();
-        
-        document.getElementById('practiceStatus').textContent = 'Listening... Speak now';
-        
-        this.speak('I\'m listening. Please speak your command now.');
-        
-        setTimeout(() => {
-            try {
-                this.recognition.start();
-            } catch (error) {
-                console.error('Speech recognition error:', error);
-                this.speak('Unable to start speech recognition. Please try again.');
-                this.stopPractice();
-            }
-        }, 2000);
-    }
-    
-    stopPractice() {
-        this.isPracticing = false;
-        if (this.recognition) {
-            this.recognition.stop();
-        }
-        
-        const practiceButton = document.getElementById('practiceButton');
-        practiceButton.innerHTML = '<i class="fas fa-microphone"></i> Start Practice';
-        practiceButton.onclick = () => this.startPractice();
-        
-        document.getElementById('practiceStatus').textContent = 'Practice stopped';
-    }
-    
-    handlePracticeCommand(command) {
-        const exercise = this.practiceExercises[this.currentExercise];
-        
-        if (command.includes(exercise.expectedResponse)) {
-            this.speak(exercise.successMessage);
-            document.getElementById('practiceStatus').textContent = 'Success! Moving to next exercise...';
-            
-            setTimeout(() => {
-                this.currentExercise++;
-                this.updatePracticeExercise();
-            }, 2000);
-        } else {
-            this.speak('Good try! Let\'s practice that command again. ' + exercise.instruction);
-            document.getElementById('practiceStatus').textContent = 'Try again - listen for the instruction';
-        }
-        
-        this.stopPractice();
-    }
-    
-    skipExercise() {
-        this.speak('Skipping exercise');
-        this.currentExercise++;
-        this.updatePracticeExercise();
-    }
-    
-    completePracticeSession() {
-        const progressBar = document.getElementById('practiceProgressBar');
-        progressBar.style.width = '100%';
-        
-        document.getElementById('practiceStatus').textContent = 'All exercises completed!';
-        document.getElementById('exerciseTitle').textContent = 'Practice Session Complete';
-        document.getElementById('exerciseInstruction').textContent = 'Congratulations! You\'ve practiced all the essential BlindMate commands.';
-        
-        const practiceButton = document.getElementById('practiceButton');
-        practiceButton.innerHTML = '<i class="fas fa-check"></i> Practice Complete';
-        practiceButton.disabled = true;
-        
-        this.speak('Excellent work! You\'ve completed all practice exercises and are ready to use BlindMate confidently.');
-    }
-    
-    repeatCurrentStep() {
-        this.speakCurrentStep();
-    }
-    
-    toggleAudio() {
-        this.audioEnabled = !this.audioEnabled;
-        const audioToggle = document.getElementById('audioToggle');
-        
-        if (this.audioEnabled) {
-            audioToggle.innerHTML = '<i class="fas fa-volume-up"></i> Audio On';
-            this.speak('Audio enabled');
-        } else {
-            audioToggle.innerHTML = '<i class="fas fa-volume-mute"></i> Audio Off';
-            this.synthesis.cancel();
-        }
-    }
-    
-    speak(text, priority = false) {
-        if (!this.audioEnabled) return;
-        
-        if (priority) {
-            this.synthesis.cancel();
-        }
-        
-        const utterance = new SpeechSynthesisUtterance(text);
-        utterance.rate = 0.8;
-        utterance.pitch = 1;
-        utterance.volume = 0.9;
-        
-        // Use a clear, friendly voice if available
-        const voices = this.synthesis.getVoices();
-        const englishVoice = voices.find(voice => 
-            voice.lang.startsWith('en') && voice.name.includes('Female')
-        ) || voices.find(voice => voice.lang.startsWith('en'));
-        
-        if (englishVoice) {
-            utterance.voice = englishVoice;
-        }
-        
-        this.synthesis.speak(utterance);
-    }
-    
-    completeTutorial() {
-        this.speak('Congratulations! You have completed the BlindMate tutorial. You are now ready to navigate with confidence. Would you like to launch BlindMate now?');
-        
-        // Store tutorial completion
-        localStorage.setItem('blindmate_tutorial_completed', 'true');
-        localStorage.setItem('blindmate_tutorial_date', new Date().toISOString());
-        
-        setTimeout(() => {
-            if (confirm('Launch BlindMate now?')) {
-                this.launchBlindMate();
-            }
-        }, 3000);
-    }
-    
-    launchBlindMate() {
-        this.speak('Launching BlindMate. Welcome to your navigation assistant!');
-        setTimeout(() => {
-            window.location.href = '/';
-        }, 2000);
-    }
-    
-    restartTutorial() {
-        if (confirm('Are you sure you want to restart the tutorial from the beginning?')) {
-            this.currentStep = 1;
-            this.currentExercise = 0;
-            this.practiceProgress = 0;
-            this.showStep(1);
-            this.speak('Tutorial restarted. Welcome back to the BlindMate tutorial.');
-        }
-    }
-    
-    exitTutorial() {
-        if (confirm('Are you sure you want to exit the tutorial?')) {
-            this.speak('Exiting tutorial. Goodbye!');
-            setTimeout(() => {
-                window.location.href = '/';
-            }, 1500);
-        }
-    }
-}
+let currentStep = 1;
+const totalSteps = 7;
 
-// Demo functions for button interactions
-function speakExample(text) {
-    const tutorial = window.tutorialInstance;
-    tutorial.speak(`Example command: ${text}`);
-}
+let setupData = {
+    language: "en-IN",
+    permissions: {
+        camera: false,
+        microphone: false,
+        location: false,
+        notifications: false
+    },
+    emergencyContacts: [],
+    home: {},
+    voiceConfigured: false,
+    setupComplete: false
+};
 
-function playDetectionDemo() {
-    const tutorial = window.tutorialInstance;
-    tutorial.speak('Enhanced detection demo with anti-overlap technology: Person ahead at 3 meters. Pausing for clarity. Car approaching from the right. Smart delay prevents voice overlap. Chair to your left with distance awareness.');
-}
+// ----------------------------
+// Initialize
+// ----------------------------
 
-function playNavigationDemo() {
-    const tutorial = window.tutorialInstance;
-    tutorial.speak('Universal navigation demo: Should I start navigation to Times Square, New York? Route calculated using Google Maps. Distance: 2.5 kilometers. Battery-optimized GPS tracking enabled. Turn left in 50 meters onto Broadway. Smart rerouting available if you deviate. Automatic arrival detection when within 10 meters. You have arrived at Times Square.');
-}
+document.addEventListener("DOMContentLoaded", () => {
 
-function playEmergencyDemo() {
-    const tutorial = window.tutorialInstance;
-    tutorial.speak('Emergency demo: Emergency mode activated. Broadcasting location. Sending alerts to emergency contacts. Loud audio beacon active. Emergency services have been notified of your location.');
-}
+    showStep(1);
 
-function startPractice() {
-    const tutorial = window.tutorialInstance;
-    tutorial.startPractice();
-}
+    setupNextButtons();
+    setupBackButtons();
+    setupLanguageSelection();
 
-function skipExercise() {
-    const tutorial = window.tutorialInstance;
-    tutorial.skipExercise();
-}
+    document
+        .getElementById("allowPermissions")
+        ?.addEventListener("click", requestPermissions);
 
-function nextStep() {
-    const tutorial = window.tutorialInstance;
-    tutorial.nextStep();
-}
+    document
+        .getElementById("startVoiceTest")
+        ?.addEventListener("click", startVoiceTest);
 
-function previousStep() {
-    const tutorial = window.tutorialInstance;
-    tutorial.previousStep();
-}
+    document
+        .getElementById("finishSetup")
+        ?.addEventListener("click", finishSetup);
 
-function toggleAudio() {
-    const tutorial = window.tutorialInstance;
-    tutorial.toggleAudio();
-}
-
-function launchBlindMate() {
-    const tutorial = window.tutorialInstance;
-    tutorial.launchBlindMate();
-}
-
-function restartTutorial() {
-    const tutorial = window.tutorialInstance;
-    tutorial.restartTutorial();
-}
-
-// Initialize tutorial when page loads
-document.addEventListener('DOMContentLoaded', () => {
-    window.tutorialInstance = new OnboardingTutorial();
 });
 
-// Service worker registration for offline access
-if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/sw.js').catch(console.error);
+// ----------------------------
+// Show Step
+// ----------------------------
+
+function showStep(step){
+
+    document
+        .querySelectorAll(".step")
+        .forEach(s=>s.classList.remove("active"));
+
+    document
+        .getElementById(`step${step}`)
+        .classList.add("active");
+
+    currentStep = step;
+
+    updateProgress();
+
 }
+
+// ----------------------------
+// Progress Bar
+// ----------------------------
+
+function updateProgress(){
+
+    const progress =
+        (currentStep / totalSteps) * 100;
+
+    document
+        .getElementById("progressFill")
+        .style.width = progress + "%";
+
+    document
+        .getElementById("stepText")
+        .innerText =
+        `Step ${currentStep} of ${totalSteps}`;
+
+}
+
+// ----------------------------
+// Next Buttons
+// ----------------------------
+
+function setupNextButtons(){
+
+    const buttons =
+        document.querySelectorAll(".nextBtn");
+
+    buttons.forEach(btn=>{
+
+        btn.addEventListener("click",()=>{
+
+            if(currentStep < totalSteps){
+
+                showStep(currentStep + 1);
+
+            }
+
+        });
+
+    });
+
+}
+
+// ----------------------------
+// Back Buttons
+// ----------------------------
+
+function setupBackButtons(){
+
+    const buttons =
+        document.querySelectorAll(".backBtn");
+
+    buttons.forEach(btn=>{
+
+        btn.addEventListener("click",()=>{
+
+            if(currentStep > 1){
+
+                showStep(currentStep - 1);
+
+            }
+
+        });
+
+    });
+
+}
+
+// ----------------------------
+// Language Selection
+// ----------------------------
+
+function setupLanguageSelection(){
+
+    const buttons =
+        document.querySelectorAll(".langBtn");
+
+    buttons.forEach(btn=>{
+
+        btn.addEventListener("click",()=>{
+
+            buttons.forEach(b=>b.classList.remove("selected"));
+
+            btn.classList.add("selected");
+
+            setupData.language =
+                btn.dataset.lang;
+
+            speak("Language selected");
+
+        });
+
+    });
+
+}
+
+// ----------------------------
+// Text To Speech
+// ----------------------------
+
+function speak(text){
+
+    speechSynthesis.cancel();
+
+    const msg =
+        new SpeechSynthesisUtterance(text);
+
+    msg.lang =
+        setupData.language;
+
+    speechSynthesis.speak(msg);
+
+}
+
+// ----------------------------
+// Request Permissions
+// ----------------------------
+
+async function requestPermissions() {
+
+    try {
+
+        // Camera + Microphone
+        const stream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+            audio: true
+        });
+
+        setupData.permissions.camera = true;
+        setupData.permissions.microphone = true;
+
+        // Stop camera after permission is granted
+        stream.getTracks().forEach(track => track.stop());
+
+    } catch (err) {
+
+        alert("Camera or Microphone permission denied.");
+
+    }
+
+    // Location
+
+    if ("geolocation" in navigator) {
+
+        navigator.geolocation.getCurrentPosition(
+
+            function(position) {
+
+                setupData.permissions.location = true;
+
+            },
+
+            function() {
+
+                alert("Location permission denied.");
+
+            }
+
+        );
+
+    }
+
+    // Notifications
+
+    if ("Notification" in window) {
+
+        Notification.requestPermission().then(permission => {
+
+            if (permission === "granted") {
+
+                setupData.permissions.notifications = true;
+
+            }
+
+        });
+
+    }
+
+    speak("Permissions completed.");
+
+}
+
+// ----------------------------
+// Voice Test
+// ----------------------------
+
+function startVoiceTest() {
+
+    const status =
+        document.getElementById("voiceStatus");
+
+    if (!('webkitSpeechRecognition' in window) &&
+        !('SpeechRecognition' in window)) {
+
+        status.innerHTML =
+            "Speech Recognition Not Supported";
+
+        return;
+
+    }
+
+    const SpeechRecognition =
+        window.SpeechRecognition ||
+        window.webkitSpeechRecognition;
+
+    const recognition =
+        new SpeechRecognition();
+
+    recognition.lang =
+        setupData.language;
+
+    recognition.start();
+
+    status.innerHTML =
+        "Listening...";
+
+    recognition.onresult = function(event){
+
+        const speech =
+            event.results[0][0].transcript;
+
+        status.innerHTML =
+            "You said : " + speech;
+
+        setupData.voiceConfigured = true;
+
+        speak("Voice configured successfully");
+
+    };
+
+    recognition.onerror = function(){
+
+        status.innerHTML =
+            "Voice test failed.";
+
+    };
+
+}
+
+// ----------------------------
+// Save Emergency Contacts
+// ----------------------------
+
+function saveEmergencyContacts(){
+
+    setupData.emergencyContacts = [
+
+        {
+
+            name:
+            document.getElementById("contact1Name").value,
+
+            phone:
+            document.getElementById("contact1Phone").value
+
+        },
+
+        {
+
+            name:
+            document.getElementById("contact2Name").value,
+
+            phone:
+            document.getElementById("contact2Phone").value
+
+        },
+
+        {
+
+            name:
+            document.getElementById("contact3Name").value,
+
+            phone:
+            document.getElementById("contact3Phone").value
+
+        }
+
+    ];
+
+}
+
+// ----------------------------
+// Save Home Address
+// ----------------------------
+
+function saveHome(){
+
+    setupData.home = {
+
+        address:
+        document.getElementById("homeAddress").value,
+
+        city:
+        document.getElementById("city").value,
+
+        state:
+        document.getElementById("state").value,
+
+        country:
+        document.getElementById("country").value
+
+    };
+
+}
+
+// =====================================
+// Finish Setup
+// =====================================
+
+function finishSetup() {
+
+    // Save Contacts
+    saveEmergencyContacts();
+
+    // Save Home
+    saveHome();
+
+    setupData.setupComplete = true;
+
+    // Save everything
+    localStorage.setItem(
+        "AIVisualAssistantSetup",
+        JSON.stringify(setupData)
+    );
+
+    speak("Setup completed successfully.");
+
+    setTimeout(() => {
+
+        // Go to existing BlindMate Dashboard
+        window.location.href = "/";
+
+    }, 2000);
+
+}
+
+// =====================================
+// Load Existing Setup
+// =====================================
+
+function loadSetup() {
+
+    const saved =
+        localStorage.getItem("AIVisualAssistantSetup");
+
+    if (!saved)
+        return null;
+
+    return JSON.parse(saved);
+
+}
+
+// =====================================
+// Check Setup
+// =====================================
+
+function isSetupComplete() {
+
+    const setup =
+        loadSetup();
+
+    if (!setup)
+        return false;
+
+    return setup.setupComplete === true;
+
+}
+
+// =====================================
+// Reset Setup (Developer)
+// =====================================
+
+function resetSetup() {
+
+    localStorage.removeItem(
+        "AIVisualAssistantSetup"
+    );
+
+    alert("Setup Reset Successfully");
+
+}
+
+// =====================================
+// Auto Redirect
+// =====================================
+
+// If setup already completed,
+// don't show onboarding again
+
+window.addEventListener("load", () => {
+
+    if (isSetupComplete()) {
+
+        window.location.href = "/";
+
+    }
+
+});
+
+// =====================================
+// Welcome Voice
+// =====================================
+
+window.onload = function () {
+
+    if (!isSetupComplete()) {
+
+        speak(
+            "Welcome to AI Visual Assistant. Let's complete a quick one time setup."
+        );
+
+    }
+
+};
+
+// =====================================
+// Keyboard Shortcuts
+// =====================================
+
+document.addEventListener("keydown", (e) => {
+
+    // ESC -> Previous Step
+
+    if (e.key === "Escape") {
+
+        if (currentStep > 1) {
+
+            showStep(currentStep - 1);
+
+        }
+
+    }
+
+    // ENTER -> Next Step
+
+    if (e.key === "Enter") {
+
+        if (currentStep < totalSteps) {
+
+            showStep(currentStep + 1);
+
+        }
+
+    }
+
+});
+
+// =====================================
+// Debug
+// =====================================
+
+console.log("AIVisualAssistant Onboarding Loaded");

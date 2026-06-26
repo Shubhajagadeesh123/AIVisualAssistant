@@ -39,6 +39,11 @@ class BlindMate {
         // Language configurations
         this.languages = {
             'en-IN': { name: 'English', voice: 'en-IN', greeting: 'Hello! Should I start detection, Sir?' },
+            'kn-IN': {
+    name: 'Kannada',
+    voice: 'kn-IN',
+    greeting: 'ನಮಸ್ಕಾರ! ನಾನು ನಿಮ್ಮ ಸಹಾಯಕ.'
+},
             'hi-IN': { name: 'Hindi', voice: 'hi-IN', greeting: 'नमस्ते! क्या मैं डिटेक्शन शुरू करूं, सर?' },
             'ta-IN': { name: 'Tamil', voice: 'ta-IN', greeting: 'வணக்கம்! நான் கண்டறிதலைத் தொடங்க வேண்டுமா, ஐயா?' },
             'te-IN': { name: 'Telugu', voice: 'te-IN', greeting: 'నమస్కారం! నేను గుర్తింపును ప్రారంభించాలా, సార్?' },
@@ -101,6 +106,27 @@ class BlindMate {
         
         this.init();
     }
+
+    loadSettings() {
+
+    const settings = JSON.parse(
+        localStorage.getItem("AIVisualAssistantSettings")
+    ) || {};
+
+    if (settings.language) {
+        this.currentLanguage = settings.language;
+    }
+
+    if (settings.voiceTone) {
+        this.currentTone = settings.voiceTone;
+    }
+
+    if (settings.userName) {
+        console.log("Welcome", settings.userName);
+    }
+
+}
+
 
 
 
@@ -329,6 +355,7 @@ class BlindMate {
      * Initialize the application
      */
     async init() {
+        this.loadSettings();
         try {
             this.updateStatus('Initializing BlindMate...', 'info');
             
@@ -1746,10 +1773,94 @@ class BlindMate {
             
             // During navigation, treat object detection as higher priority to avoid conflicts with turn instructions
             const isNavigationMode = this.isNavigating && this.currentRoute;
-            this.speak(announcement, isNavigationMode, true); // Higher priority during navigation
+            const sceneDescription =
+    this.generateSceneDescription(importantObjects);
+
+this.speak(sceneDescription, isNavigationMode, true);
             this.lastAnnouncement = now;
         }
     }
+
+    generateSceneDescription(predictions){
+
+    if (!predictions || predictions.length === 0) {
+
+        return "The area around you appears clear.";
+
+    }
+
+    let people=[];
+    let furniture=[];
+    let objects=[];
+    let vehicles=[];
+
+    predictions.forEach(prediction=>{
+
+        const name=prediction.class;
+
+        const position=this.getRelativePosition(prediction.bbox);
+
+        const distance=this.estimateDistance(prediction.bbox);
+
+        const text=`${name} ${position}, ${distance}`;
+
+        if(name==="person"){
+
+            people.push(text);
+
+        }
+
+        else if(["chair","couch","bench","table","bed"].includes(name)){
+
+            furniture.push(text);
+
+        }
+
+        else if(["car","truck","bus","motorcycle","bicycle"].includes(name)){
+
+            vehicles.push(text);
+
+        }
+
+        else{
+
+            objects.push(text);
+
+        }
+
+    });
+
+    let sentence="";
+
+    if(people.length){
+
+        sentence+="I can see "+people.join(", ")+". ";
+
+    }
+
+    if(furniture.length){
+
+        sentence+="Nearby furniture includes "+furniture.join(", ")+". ";
+
+    }
+
+    if(objects.length){
+
+        sentence+="Nearby objects include "+objects.join(", ")+". ";
+
+    }
+
+    if(vehicles.length){
+
+        sentence+="Vehicles detected: "+vehicles.join(", ")+". ";
+
+    }
+
+    sentence+="Please move carefully.";
+
+    return sentence;
+
+}
 
     /**
      * Legacy announcement method for backwards compatibility
@@ -2764,6 +2875,8 @@ class BlindMate {
                 
                 const utterance = new SpeechSynthesisUtterance(text);
                 utterance.lang = this.currentLanguage;
+                utterance.rate = 1;
+                utterance.pitch = 1;
                 
                 // Apply tone-specific voice settings
                 const toneSettings = this.getToneSettings(this.currentTone);
@@ -2889,3 +3002,23 @@ document.addEventListener('visibilitychange', () => {
         }
     }
 });
+
+const settingsBtn = document.getElementById("settingsTab") || document.getElementById("settingsBtn");
+
+if (settingsBtn) {
+    settingsBtn.addEventListener("click", () => {
+        window.location.href = "/settings";
+    });
+}
+
+if (window.memoryAssistant) {
+
+    window.memoryAssistant.saveObject(
+
+        detectedObjectName,
+
+        "In front of you"
+
+    );
+
+}

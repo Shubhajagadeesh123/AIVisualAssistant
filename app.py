@@ -5,7 +5,10 @@ import re
 from flask import Flask, request, jsonify, render_template, session, send_from_directory
 from flask_cors import CORS
 from gemini_service import GeminiService
+from services.ocr_service import OCRService
+import json
 
+ocr = OCRService()
 # Configure logging with UTF-8 encoding
 # Use INFO level for production, DEBUG for development
 log_level = logging.DEBUG if os.environ.get('FLASK_ENV') == 'development' else logging.INFO
@@ -39,6 +42,77 @@ def index():
         return "Application files not found", 404
 
 # Static files are now served automatically by Flask from /static folder
+SETTINGS_FILE = "user_settings.json"
+@app.route("/api/ocr")
+
+@app.route("/api/settings", methods=["GET"])
+def get_settings():
+
+    if not os.path.exists(SETTINGS_FILE):
+        return jsonify({})
+
+    with open(SETTINGS_FILE, "r") as f:
+        settings = json.load(f)
+
+    return jsonify(settings)
+
+MEMORY_FILE = "memory.json"
+
+
+@app.route("/api/memory/save", methods=["POST"])
+def save_memory():
+
+    data = request.json
+
+    memories = []
+
+    if os.path.exists(MEMORY_FILE):
+
+        with open(MEMORY_FILE, "r") as f:
+            memories = json.load(f)
+
+    memories.append(data)
+
+    with open(MEMORY_FILE, "w") as f:
+        json.dump(memories, f, indent=4)
+
+    return jsonify({
+        "success": True
+    })
+
+
+@app.route("/api/memory")
+def get_memory():
+
+    if not os.path.exists(MEMORY_FILE):
+
+        return jsonify([])
+
+    with open(MEMORY_FILE, "r") as f:
+
+        memories = json.load(f)
+
+    return jsonify(memories)
+@app.route("/api/settings", methods=["POST"])
+def save_settings():
+
+    data = request.json
+
+    with open(SETTINGS_FILE, "w") as f:
+        json.dump(data, f, indent=4)
+
+    return jsonify({
+        "success": True,
+        "message": "Settings saved successfully."
+    })
+
+@app.route("/settings")
+def settings():
+    return render_template("settings.html")
+
+@app.route("/onboarding")
+def onboarding():
+    return render_template("onboarding.html")
 
 @app.route('/tutorial')
 def tutorial():
@@ -220,6 +294,34 @@ def preferences():
             'language': session.get('current_language'),
             'tone': session.get('current_tone')
         })
+    
+@app.route("/api/emergency", methods=["POST"])
+def emergency():
+
+    data = request.json
+
+    print("=" * 50)
+    print("🚨 EMERGENCY ALERT")
+    print("=" * 50)
+
+    print("Latitude :", data.get("latitude"))
+    print("Longitude:", data.get("longitude"))
+
+    print("Contacts:")
+
+    for contact in data.get("contacts", []):
+
+        print(contact)
+
+    print("=" * 50)
+
+    return jsonify({
+
+        "success": True,
+
+        "message": "Emergency alert received."
+
+    })
 
 def enhance_search_terms(address):
     """Enhance generic search terms for better geocoding results"""
